@@ -128,11 +128,30 @@ def zero_to_nan(values):
     return [float('nan') if x==0 else x for x in values]
 
 
-'''
 def value_to_nan(values):
     """Replace every 0 with 'nan' and return a copy."""
     return [float('nan') if not (x==0) else x for x in values]
-'''
+
+
+# remove wrong 327.50830 data. This should be none, probably due to some weird gaussian behaviour.
+# Only use for exactly this code and dataset
+def removeBottomRight(data):
+    min = np.min(data[:, 1])
+    threshold = 0.25
+
+    for item in data:
+        if item[1] < (min+threshold):
+            item[2] = float('nan')
+
+    return data
+
+
+def increaseArea(data, xMin, xMax, yMin, yMax, factor):
+    for item in data:
+        if item[1] > xMin and item[1] < xMax and item[0] > yMin and item[0] < yMax:
+            item[2] *= factor
+
+    return data
 
 
 def topology(north, east, south, west, strides):
@@ -191,24 +210,27 @@ def topology(north, east, south, west, strides):
 
         data = data[np.lexsort((data[:, 1], data[:, 0]))]
         offset = int(len(data) / np.unique(data[:, 1], return_counts=True)[1][0])
+        heightFactor = 3.5
+        data = increaseArea(data, 20, 60, 270, 320, 2)
 
-        gaussian = np.array(gaussian_filter1d(5, 3))  # Getting filter to smooth signal
+        gaussian = np.array(gaussian_filter1d(7, 5))  # Getting filter to smooth signal
         data[:, 2] = np.convolve(gaussian, data[:, 2], "same")
 
-        # dataSea = copy.deepcopy(data)
-        # dataSea[:, 2] = value_to_nan(dataSea[:, 2])
+        dataSea = copy.deepcopy(data)
+        dataSea[:, 2] = value_to_nan(dataSea[:, 2])
+
         data[:, 2] = zero_to_nan(data[:, 2])
+
+        data = removeBottomRight(data)
 
         ax = plt.gca()
         for i in range(0, np.unique(data[:, 1], return_counts=True)[1][0]):
-            ax.plot(2.8 * data[offset * i: offset * (i + 1), 2] + maxHeight * i,
-            data[offset * i: offset * (i + 1), 1], "black")
+            ax.plot(heightFactor * data[offset * i: offset * (i + 1), 2] + maxHeight * i,
+            data[offset * i: offset * (i + 1), 1], "black", linewidth=0.7)
 
-        '''
         for i in range(0, np.unique(data[:, 1], return_counts=True)[1][0]):
             ax.plot(dataSea[offset * i: offset * (i + 1), 2] + maxHeight * i,
-            dataSea[offset * i: + offset * (i + 1), 1], "grey", linewidth=1)
-        '''
+            dataSea[offset * i: + offset * (i + 1), 1], "gainsboro", linewidth=0.2)
 
         plt.axis('off')
         # plt.show()
